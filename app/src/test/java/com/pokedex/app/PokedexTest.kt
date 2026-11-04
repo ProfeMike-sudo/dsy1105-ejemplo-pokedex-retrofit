@@ -14,13 +14,19 @@ import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
+/**
+ * Pruebas locales de JVM: ejercitan Repository, Retrofit y ViewModel sin un emulador.
+ * Las respuestas controladas permiten reproducir éxitos y errores sin depender de PokéAPI.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PokedexTest {
     private val ficha = PokemonDto(25, "pikachu", 4, 60, SpritesDto(null), listOf(PokemonTypeDto(1, TypeDto("electric"))))
+    // Implementación falsa del contrato: cada prueba decide qué devolver o qué error lanzar.
     private fun api(block: suspend (String) -> PokemonDto) = object : PokeApi {
         override suspend fun obtenerPokemon(nombre: String) = block(nombre)
     }
 
+    // Tres entradas equivalentes deben provocar una sola llamada al servicio.
     @Test fun normalizaYReutilizaCachePorNombreEId() = runTest {
         var llamadas = 0
         val repo = PokemonRepository(api { nombre ->
@@ -34,6 +40,7 @@ class PokedexTest {
         assertEquals(1, llamadas)
     }
 
+    // MockWebServer responde por HTTP local: prueba la ruta y la conversión real de Gson.
     @Test fun retrofitMapeaJsonYRutaReales() = runTest {
         val server = MockWebServer()
         server.enqueue(MockResponse().setBody("""{"id":25,"name":"pikachu","height":4,"weight":60,"sprites":{"front_default":"https://example.com/pikachu.png"},"types":[{"slot":1,"type":{"name":"electric"}}]}"""))
@@ -49,7 +56,9 @@ class PokedexTest {
         } finally { server.shutdown() }
     }
 
+    // Si la API falsa llega a ejecutarse, la prueba falla: la validación debe detenerla.
     @Test fun consultaVaciaNoHacePeticion() = runTest {
+        // Sustituye Main de Android por un dispatcher de prueba; finally restaura el original.
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val vm = PokedexViewModel(PokemonRepository(api { error("No debe llamar") }))
@@ -60,13 +69,16 @@ class PokedexTest {
         } finally { Dispatchers.resetMain() }
     }
 
+    // El planificador controlado permite observar carga antes de completar la corrutina.
     @Test fun publicaCargaExitoYEvitaDobleConsulta() = runTest {
+        // Sustituye Main de Android por un dispatcher de prueba; finally restaura el original.
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             var llamadas = 0
             val vm = PokedexViewModel(PokemonRepository(api { llamadas++; ficha }))
             vm.buscar(); vm.buscar()
             assertTrue(vm.uiState.value.cargando)
+            // Ejecuta las tareas pendientes del planificador hasta que no quede trabajo.
             advanceUntilIdle()
             assertEquals(1, llamadas)
             assertEquals(ficha, vm.uiState.value.pokemon)
@@ -75,7 +87,9 @@ class PokedexTest {
         } finally { Dispatchers.resetMain() }
     }
 
+    // El primer intento falla y el segundo responde: verifica que la UI pueda recuperarse.
     @Test fun errorDeRedPermiteReintento() = runTest {
+        // Sustituye Main de Android por un dispatcher de prueba; finally restaura el original.
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             var intentos = 0
@@ -93,7 +107,9 @@ class PokedexTest {
         } finally { Dispatchers.resetMain() }
     }
 
+    // Una respuesta HTTP 404 real del servidor local debe convertirse en un mensaje de UI.
     @Test fun respuesta404ProduceMensajeEspecifico() = runTest {
+        // Sustituye Main de Android por un dispatcher de prueba; finally restaura el original.
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val server = MockWebServer()
         server.enqueue(MockResponse().setResponseCode(404).setBody("Not Found"))
@@ -103,6 +119,8 @@ class PokedexTest {
                 .addConverterFactory(GsonConverterFactory.create()).build().create(PokeApi::class.java)
             val vm = PokedexViewModel(PokemonRepository(service))
             vm.buscar()
+            // La respuesta HTTP llega desde un hilo real. Avanzamos el planificador de prueba
+            // hasta que el ViewModel publique el resultado, con un límite de cinco segundos.
             withContext(Dispatchers.Default) {
                 withTimeout(5000) {
                     while(vm.uiState.value.cargando) {
