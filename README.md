@@ -6,8 +6,8 @@ La app incluye validación de entrada, indicador de carga, mensajes de error, re
 
 ## Abrir y ejecutar en Android Studio
 
-1. Clona este repositorio o descarga y descomprime su ZIP.
-2. Abre la carpeta raíz, donde está `settings.gradle.kts`.
+1. En Android Studio elige **File > New > Project from Version Control**, pega la URL de este repositorio y presiona **Clone**. También puedes descargar su ZIP y descomprimirlo.
+2. Si usaste el ZIP, abre la carpeta raíz, donde está `settings.gradle.kts`.
 3. Usa Android Studio con soporte para Android Gradle Plugin 8.13.1. Configura el JDK de Gradle en 21, que es el utilizado para compilar este ejemplo.
 4. Instala Android SDK Platform 36 desde SDK Manager y acepta la sincronización de Gradle.
 5. Selecciona un emulador o dispositivo Android API 24 o superior, con conexión a internet.
@@ -15,23 +15,10 @@ La app incluye validación de entrada, indicador de carga, mensajes de error, re
 
 Android Studio configura la ruta del SDK en `local.properties`. Ese archivo es específico de cada equipo y no se versiona. La primera sincronización necesita internet para descargar dependencias.
 
-## Compilar desde terminal
+## Compilar y probar desde Android Studio
 
-Linux o macOS:
-
-```bash
-./gradlew assembleDebug
-./gradlew testDebugUnitTest
-```
-
-Windows PowerShell:
-
-```powershell
-.\gradlew.bat assembleDebug
-.\gradlew.bat testDebugUnitTest
-```
-
-El APK de depuración se genera en `app/build/outputs/apk/debug/app-debug.apk`.
+- **Generar el APK de depuración:** menú **Build > Build Bundle(s) / APK(s) > Build APK(s)**. El archivo queda en `app/build/outputs/apk/debug/app-debug.apk`.
+- **Ejecutar las pruebas:** en el panel **Project**, con la vista **Android**, haz clic derecho sobre `com.pokedex.app (test)` y elige **Run**. Los resultados aparecen en el panel **Run**, en la parte inferior.
 
 ## Probar en clases
 
